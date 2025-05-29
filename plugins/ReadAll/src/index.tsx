@@ -1,6 +1,6 @@
-import { ReactNative as RN } from '@vendetta/metro/common';
+import { ReactNative as RN, FluxDispatcher } from '@vendetta/metro/common';
 import { Forms } from '@vendetta/ui/components';
-import { findByProps } from '@vendetta/metro';
+import { findByProps, findByStoreName } from '@vendetta/metro';
 import { showToast } from '@vendetta/ui/toasts';
 import { getAssetIDByName } from '@vendetta/ui/assets';
 import { storage } from '@vendetta/plugin';
@@ -11,63 +11,46 @@ const { FormSection, FormRow, FormSwitchRow, FormDivider } = Forms;
 storage.markGuilds ??= true;
 storage.markPrivate ??= false;
 
-interface Guild {
-    id: string;
-    name: string;
-}
-
-interface Channel {
-    id: string;
-    type: number;
-}
-
-const GuildStore = findByProps("getGuilds", "getGuild");
+const GuildStore = findByProps('getGuilds', 'getGuild');
+const GuildChannelStore = findByProps('getChannels', 'getChannelsForGuild');
 const ChannelStore = findByProps('getChannel', 'getMutablePrivateChannels');
-const ReadStateStore = findByProps('getUnreadCount', 'hasUnread');
-
-const ReadStateActions =
-    findByProps('markGuildAsRead', 'markChannelAsRead') ||
-    findByProps('ackGuild', 'ackChannel') ||
-    findByProps('markAsRead') ||
-    findByProps('ack') ||
-    findByProps('markGuildAsRead') ||
-    findByProps('markChannelAsRead');
+const ActiveJoinedThreadsStore = findByStoreName('ActiveJoinedThreadsStore');
+const ReadStateStore = findByStoreName('ReadStateStore');
 
 const markAllAsRead = async () => {
-    if (storage.markGuilds && GuildStore) {
-        const guilds = Object.values(GuildStore.getGuilds()) as Guild[];
+    const channels = [];
+    
+    if (storage.markGuilds) {
+        const guilds = Object.values(GuildStore.getGuilds());
         for (const guild of guilds) {
-            if (guild?.id && ReadStateStore?.hasUnread?.(guild.id)) {
-                if (ReadStateActions.markGuildAsRead) {
-                    ReadStateActions.markGuildAsRead(guild.id);
-                } else if (ReadStateActions.ackGuild) {
-                    ReadStateActions.ackGuild(guild.id);
-                } else if (ReadStateActions.markAsRead) {
-                    ReadStateActions.markAsRead(guild.id);
-                } else if (ReadStateActions.ack) {
-                    ReadStateActions.ack(guild.id);
+            const channels = GuildChannelStore.getChannels(guild.id).SELECTABLE
+                .concat(GuildChannelStore.getChannels(guild.id).VOCAL)
+                .concat(
+                    Object.values(ActiveJoinedThreadsStore.getActiveJoinedThreadsForGuild(guild.id))
+                        .flatMap(threadChannels => Object.values(threadChannels))
+                );
+            for (const channel of channels) {
+                if (ReadStateStore.hasUnread(channel.id)) {
+                    channels.push(channel.id);
                 }
+            }
+        }
+    }
+
+    if (storage.markPrivate) {
+        const privateChannels = Object.values(ChannelStore.getMutablePrivateChannels());
+        for (const channel of privateChannels) {
+            if (ReadStateStore.hasUnread(channel.id)) {
+                channels.push(channel.id);
             }
         }
     }
     
-    if (storage.markPrivate && ChannelStore) {
-        const privateChannels = Object.values(ChannelStore.getMutablePrivateChannels()) as Channel[];
-        for (const channel of privateChannels) {
-            if (channel?.id && ReadStateStore?.hasUnread?.(channel.id)) {
-                if (ReadStateActions.markChannelAsRead) {
-                    ReadStateActions.markChannelAsRead(channel.id);
-                } else if (ReadStateActions.ackChannel) {
-                    ReadStateActions.ackChannel(channel.id);
-                } else if (ReadStateActions.markAsRead) {
-                    ReadStateActions.markAsRead(channel.id);
-                } else if (ReadStateActions.ack) {
-                    ReadStateActions.ack(channel.id);
-                }
-            }
-        }
-    }
-
+    FluxDispatcher.dispatch({
+        type: 'BULK_ACK',
+        context: 'APP',
+        channels: channels
+    });
     showToast(`Marked all as read!`, getAssetIDByName('Check'));
 };
 
@@ -80,7 +63,7 @@ export function settings() {
                 <FormSwitchRow
                     label="Mark Guild Channels"
                     subLabel="Mark all unread channels in servers as read"
-                    leading={<FormRow.Icon source={getAssetIDByName('ic_guild_24px')} />}
+                    leading={<FormRow.Icon source={getAssetIDByName('ic_debug_24px')} />}
                     value={storage.markGuilds}
                     onValueChange={(v: boolean) => {
                         storage.markGuilds = v;
@@ -90,7 +73,7 @@ export function settings() {
                 <FormSwitchRow
                     label="Mark Private Channels"
                     subLabel="Mark all unread DMs and group chats as read"
-                    leading={<FormRow.Icon source={getAssetIDByName('ic_message_24px')} />}
+                    leading={<FormRow.Icon source={getAssetIDByName('ic_debug_24px')} />}
                     value={storage.markPrivate}
                     onValueChange={(v: boolean) => {
                         storage.markPrivate = v;
@@ -105,20 +88,7 @@ export function settings() {
                     onPress={markAllAsRead}
                     trailing={FormRow.Arrow}
                 />
-                <FormRow
-                    label="Debug: Show Available Methods"
-                    subLabel="Log available ReadStateActions methods to console"
-                    leading={<FormRow.Icon source={getAssetIDByName('ic_info_24px')} />}
-                    onPress={() => {
-                        if (ReadStateActions) {
-                            console.log('ReadStateActions methods:', Object.keys(ReadStateActions));
-                            showToast(`Check console for available methods`, getAssetIDByName('ic_info_24px'));
-                        } else {
-                            showToast('ReadStateActions not found', getAssetIDByName('ic_warning_24px'));
-                        }
-                    }}
-                    trailing={FormRow.Arrow}
-                />
+                <FormDivider />
             </FormSection>
         </RN.ScrollView>
     );
