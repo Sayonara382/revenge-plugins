@@ -1,16 +1,16 @@
-import { React, ReactNative } from '@vendetta/metro/common';
+import { React, ReactNative as RN } from '@vendetta/metro/common';
 import { Forms } from '@vendetta/ui/components';
 import { useProxy } from '@vendetta/storage';
 import { storage } from '@vendetta/plugin';
 import { getAssetIDByName } from '@vendetta/ui/assets';
 import randomString from './lib/randomString';
 
-const { FormInput, FormRow, FormText, FormSection } = Forms;
+const { FormSection, FormRow, FormInput, FormText } = Forms;
 
 const MIN_LENGTH = 1;
 const MAX_LENGTH = 20;
 
-export default () => {
+export default function Settings() {
     useProxy(storage);
     const [inputValue, setInputValue] = React.useState(storage.nameLength?.toString() || '8');
     const [error, setError] = React.useState<string | null>(null);
@@ -43,40 +43,32 @@ export default () => {
     };
 
     return (
-        <ReactNative.ScrollView>
-            <FormSection title="Configuration">
+        <RN.ScrollView style={{ flex: 1 }}>
+            <FormSection title="CONFIGURATION">
                 <FormInput
-                    title="File name length"
-                    placeholder="8"
-                    keyboardType="numeric"
-                    maxLength={2}
                     value={inputValue}
-                    onChange={validateAndUpdate}
+                    onChange={(v: string) => validateAndUpdate(v)}
+                    placeholder="8"
+                    title="FILE NAME LENGTH"
+                    keyboardType="numeric"
                     error={error}
                 />
                 <FormRow
-                    label="Range"
-                    trailing={
-                        <FormText>
-                            {MIN_LENGTH} - {MAX_LENGTH} characters
-                        </FormText>
-                    }
+                    label="Valid Range"
+                    subLabel={`${MIN_LENGTH} - ${MAX_LENGTH} characters`}
                     leading={<FormRow.Icon source={getAssetIDByName('ic_info_filled_16px')} />}
                 />
                 <FormRow
-                    label="Preview"
-                    trailing={
-                        <FormText style={{ fontFamily: 'monospace' }}>
-                            {getPreviewName()}.jpg
-                        </FormText>
-                    }
+                    label="Live Preview"
+                    subLabel={`${getPreviewName()}.jpg`}
                     leading={<FormRow.Icon source={getAssetIDByName('ic_eye_24px')} />}
                 />
             </FormSection>
-            <FormSection title="About">
+
+            <FormSection title="INFORMATION">
                 <FormRow
-                    label="How it works"
-                    subLabel={`When you upload files, their names will be replaced with random ${inputValue || '8'}-character strings using letters and numbers. The file extension will be preserved.`}
+                    label="How It Works"
+                    subLabel={`Files you upload will have their names replaced with random ${inputValue || '8'}-character strings while preserving the file extension`}
                     leading={<FormRow.Icon source={getAssetIDByName('ic_help_16px')} />}
                 />
                 <FormRow
@@ -85,6 +77,6 @@ export default () => {
                     leading={<FormRow.Icon source={getAssetIDByName('ic_show_24px')} />}
                 />
             </FormSection>
-        </ReactNative.ScrollView>
+        </RN.ScrollView>
     );
-};
+}

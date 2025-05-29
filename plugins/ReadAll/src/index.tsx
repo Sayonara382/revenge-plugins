@@ -1,4 +1,4 @@
-import { ReactNative } from '@vendetta/metro/common';
+import { ReactNative as RN } from '@vendetta/metro/common';
 import { Forms } from '@vendetta/ui/components';
 import { findByProps, findByStoreName } from '@vendetta/metro';
 import { showToast } from '@vendetta/ui/toasts';
@@ -6,7 +6,7 @@ import { getAssetIDByName } from '@vendetta/ui/assets';
 import { storage } from '@vendetta/plugin';
 import { useProxy } from '@vendetta/storage';
 
-const { FormSection, FormRow, FormSwitch } = Forms;
+const { FormSection, FormRow, FormSwitchRow } = Forms;
 
 storage.markGuilds ??= true;
 storage.markPrivate ??= false;
@@ -16,84 +16,80 @@ const ChannelStore = findByProps('getChannel', 'getMutablePrivateChannels');
 const ReadStateStore = findByProps('getUnreadCount', 'hasUnread');
 const ReadStateActions = findByProps('markGuildAsRead', 'markChannelAsRead');
 
-const markAllAsRead = () => {
-    if (storage.markGuilds) {
-        const guilds = Object.values(GuildStore.getGuilds()) as Array<{ id: string }>;
-        for (const guild of guilds) {
-            if (ReadStateStore.hasUnread(guild.id)) {
-                ReadStateActions.markGuildAsRead(guild.id);
+const markAllAsRead = async () => {
+    try {
+        let markedCount = 0;
+
+        if (storage.markGuilds) {
+            const guilds = Object.values(GuildStore.getGuilds()) as Array<{ id: string }>;
+            for (const guild of guilds) {
+                try {
+                    if (ReadStateStore.hasUnread(guild.id)) {
+                        await ReadStateActions.markGuildAsRead(guild.id);
+                        markedCount++;
+                    }
+                } catch (e) {
+                    console.log(`Failed to mark guild ${guild.id} as read:`, e);
+                }
             }
         }
-    }
-    if (storage.markPrivate) {
-        const privateChannels = Object.values(ChannelStore.getMutablePrivateChannels()) as Array<{ id: string }>;
-        for (const channel of privateChannels) {
-            if (ReadStateStore.hasUnread(channel.id)) {
-                ReadStateActions.markChannelAsRead(channel.id);
+
+        if (storage.markPrivate) {
+            const privateChannels = Object.values(ChannelStore.getMutablePrivateChannels()) as Array<{ id: string }>;
+            for (const channel of privateChannels) {
+                try {
+                    if (ReadStateStore.hasUnread(channel.id)) {
+                        await ReadStateActions.markChannelAsRead(channel.id);
+                        markedCount++;
+                    }
+                } catch (e) {
+                    console.log(`Failed to mark channel ${channel.id} as read:`, e);
+                }
             }
         }
+
+        showToast(`Marked ${markedCount} channels as read!`, getAssetIDByName('Check'));
+    } catch (e) {
+        console.log('Error in markAllAsRead:', e);
+        showToast('Failed to mark all as read', getAssetIDByName('Small'));
     }
-    showToast('All channels marked as read!', getAssetIDByName('Check'));
 };
 
-const MarkAllAsReadButton = () => {
-    const { Text, TouchableOpacity } = ReactNative;
-    return (
-        <TouchableOpacity
-            onPress={markAllAsRead}
-            style={{
-                backgroundColor: '#5865f2',
-                padding: 12,
-                margin: 8,
-                borderRadius: 8,
-                alignItems: 'center',
-                flexDirection: 'row',
-                justifyContent: 'center'
-            }}
-            activeOpacity={0.7}
-        >
-            <Text style={{ color: '#ffffff', fontSize: 14, fontWeight: '600', textAlign: 'center' }}>
-                Mark All as Read
-            </Text>
-        </TouchableOpacity>
-    );
-};
-
-export const settings = () => {
+export function settings() {
     useProxy(storage);
-    const { View } = ReactNative;
+
     return (
-        <ReactNative.ScrollView>
-            <FormSection title="Mark Options">
-                <FormRow
+        <RN.ScrollView style={{ flex: 1 }}>
+            <FormSection title="MARK OPTIONS">
+                <FormSwitchRow
                     label="Mark Guild Channels"
                     subLabel="Mark all unread channels in servers as read"
                     leading={<FormRow.Icon source={getAssetIDByName('ic_group_24px')} />}
-                    trailing={
-                        <FormSwitch
-                            value={storage.markGuilds}
-                            onValueChange={(value: boolean) => (storage.markGuilds = value)}
-                        />
-                    }
+                    value={storage.markGuilds}
+                    onValueChange={(v: boolean) => {
+                        storage.markGuilds = v;
+                    }}
                 />
-                <FormRow
+                <FormSwitchRow
                     label="Mark Private Channels"
                     subLabel="Mark all unread DMs and group chats as read"
                     leading={<FormRow.Icon source={getAssetIDByName('ic_message_24px')} />}
-                    trailing={
-                        <FormSwitch
-                            value={storage.markPrivate}
-                            onValueChange={(value: boolean) => (storage.markPrivate = value)}
-                        />
-                    }
+                    value={storage.markPrivate}
+                    onValueChange={(v: boolean) => {
+                        storage.markPrivate = v;
+                    }}
                 />
             </FormSection>
 
-            <FormSection title="Action">
-                <View style={{ padding: 16 }}>
-                    <MarkAllAsReadButton />
-                </View>
+            <FormSection title="ACTIONS">
+                <FormRow
+                    label="Mark All as Read"
+                    subLabel="Mark all selected channel types as read"
+                    leading={<FormRow.Icon source={getAssetIDByName('ic_check_24px')} />}
+                    onPress={markAllAsRead}
+                    trailing={FormRow.Arrow}
+                />
             </FormSection>
-        </ReactNative.ScrollView>
+        </RN.ScrollView>
     );
-};
+}
