@@ -1,11 +1,11 @@
 import { ReactNative as RN } from '@vendetta/metro/common';
-import { Forms } from '@vendetta/ui/components';
 import { findByProps, findByStoreName } from '@vendetta/metro';
 import { showToast } from '@vendetta/ui/toasts';
 import { getAssetIDByName } from '@vendetta/ui/assets';
 import { storage } from '@vendetta/plugin';
 import { useProxy } from '@vendetta/storage';
 
+export const Forms = findByProps("Form", "FormSection");
 const { FormSection, FormRow, FormSwitchRow } = Forms;
 
 storage.markGuilds ??= true;

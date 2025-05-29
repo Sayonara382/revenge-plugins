@@ -50,7 +50,7 @@ export default function Settings() {
                         value={inputValue}
                         onChange={(v: string) => validateAndUpdate(v)}
                         placeholder="8"
-                        title="FILE NAME LENGTH"
+                        title="File name length"
                         keyboardType="numeric"
                         error={error}
                     />
