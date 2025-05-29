@@ -1,0 +1,14 @@
+{
+    "name": "Clean URLs",
+    "description": "Removes tracking garbage from links you send and receive",
+    "authors": [
+        {
+            "name": "sayonaraxwho",
+            "id": "330643070670602240"
+        }
+    ],
+    "main": "src/index.ts",
+    "vendetta": {
+        "icon": "ic_link"
+    }
+}
